@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>DNA Pattern Matching – WM vs WM-q</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+        }
+
+        h2 {
+            margin-bottom: 10px;
+        }
+
+        label {
+            display: block;
+            margin-top: 10px;
+        }
+
+        input, select {
+            margin-top: 4px;
+            padding: 4px;
+        }
+
+        button {
+            margin-top: 15px;
+            padding: 8px 18px;
+            margin-right: 10px;
+            cursor: pointer;
+        }
+
+        pre {
+            background: #f4f4f4;
+            padding: 15px;
+            margin-top: 20px;
+            white-space: pre-wrap;
+            border: 1px solid #ccc;
+        }
+    </style>
+</head>
+
+<body>
+
+<h2>DNA Pattern Matching Demo</h2>
+
+<form id="runForm">
+
+    <label>
+        FASTA File
+        <input type="file" id="fastaFile" required>
+    </label>
+
+    <label>
+        Algorithm
+        <select id="algorithm">
+            <option value="wm">Wu–Manber (WM)</option>
+            <option value="wm_q">WM-q</option>
+        </select>
+    </label>
+
+    <label>
+        Pattern Length (m)
+        <input type="number" id="m" value="64" min="1">
+    </label>
+
+    <label>
+        Number of Patterns (d)
+        <input type="number" id="d" value="1000" min="1">
+    </label>
+
+    <label>
+        q (for WM-q)
+        <input type="number" id="q" value="8" min="1">
+    </label>
+
+    <label>
+     Mutations per Pattern
+     <input type="number" id="mutation" value="0" min="0">
+    </label>
+
+    <button type="submit">Run Algorithm</button>
+    <button type="button" id="compareBtn">Compare WM vs WM-q</button>
+    
+</form>
+
+<h3>Output</h3>
+<pre id="output">Waiting for input...</pre>
+
+<script>
+console.log("Frontend loaded");
+
+const output = document.getElementById("output");
+const form = document.getElementById("runForm");
+const compareBtn = document.getElementById("compareBtn");
+
+function buildFormData(includeAlgorithm = true) {
+    const fileInput = document.getElementById("fastaFile");
+
+    if (fileInput.files.length === 0) {
+        output.textContent = "Please upload a FASTA file.";
+        return null;
+    }
+
+    const fd = new FormData();
+    fd.append("fasta_file", fileInput.files[0]);
+    fd.append("m", document.getElementById("m").value);
+    fd.append("d", document.getElementById("d").value);
+    fd.append("q", document.getElementById("q").value);
+    fd.append("mutation", document.getElementById("mutation").value);
+
+    if (includeAlgorithm) {
+        fd.append("algorithm", document.getElementById("algorithm").value);
+    }
+
+    return fd;
+}
+
+/* -------- Run single algorithm -------- */
+form.addEventListener("submit", async function (e) {
+    e.preventDefault();
+    console.log("Run Algorithm clicked");
+
+    const formData = buildFormData(true);
+    if (!formData) return;
+
+    output.textContent = "Running algorithm...";
+
+    try {
+        const res = await fetch("/run", {
+            method: "POST",
+            body: formData
+        });
+
+        const data = await res.json();
+        output.textContent = JSON.stringify(data, null, 2);
+
+    } catch (err) {
+        output.textContent = "Error: " + err;
+    }
+});
+
+/* -------- Compare WM vs WM-q -------- */
+compareBtn.addEventListener("click", async function () {
+    console.log("Compare clicked");
+
+    const formData = buildFormData(false);
+    if (!formData) return;
+
+    output.textContent = "Comparing WM vs WM-q...";
+
+    try {
+        const res = await fetch("/compare", {
+            method: "POST",
+            body: formData
+        });
+
+        const data = await res.json();
+        output.textContent = JSON.stringify(data, null, 2);
+
+    } catch (err) {
+        output.textContent = "Error: " + err;
+    }
+});
+</script>
+<script>
+document.getElementById("downloadCsvBtn").addEventListener("click", async () => {
+    const fileInput = document.getElementById("fastaFile");
+
+    if (!fileInput.files.length) {
+        alert("Please upload a FASTA file first");
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append("fasta_file", fileInput.files[0]);
+
+    const response = await fetch("/download_csv", {
+        method: "POST",
+        body: formData
+    });
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "wm_results.csv";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+
+    window.URL.revokeObjectURL(url);
+});
+</script>
+
+</body>
+</html>
